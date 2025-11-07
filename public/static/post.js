@@ -96,7 +96,7 @@ function updateDayAgeDisplay() {
     
     if (dateInput.value) {
         const dayAge = calculateDayAge(dateInput.value);
-        dayAgeDisplay.textContent = `🎉 みなと ${dayAge} 日目 🎉`;
+        dayAgeDisplay.textContent = `みなと ${dayAge} 日目`;
     }
 }
 
