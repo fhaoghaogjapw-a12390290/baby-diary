@@ -5,5 +5,12 @@
   "pages_build_output_dir": "./dist",
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "baby-diary-production",
+      "database_id": "c9d99cd0-1118-4038-8f04-1d75bf31a3da"
+    }
   ]
 }
