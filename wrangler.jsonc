@@ -12,5 +12,11 @@
       "database_name": "baby-diary-production",
       "database_id": "c9d99cd0-1118-4038-8f04-1d75bf31a3da"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "baby-diary-bucket"
+    }
   ]
 }
