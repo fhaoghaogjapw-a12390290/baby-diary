@@ -10,12 +10,43 @@ document.addEventListener('DOMContentLoaded', () => {
 // すべての記録を日付ごとに取得して表示
 async function loadAllEntries() {
     try {
-        // 記録がある日付の一覧を取得
-        const datesRes = await fetch('/api/entries/dates');
-        const datesData = await datesRes.json();
+        // すべての記録を取得して日付ごとにグループ化
+        const allEntriesRes = await fetch('/api/entries/latest?limit=1000'); // 仮のエンドポイントを使用
         
-        if (!datesData.success || datesData.data.length === 0) {
-            document.getElementById('allEntriesArea').innerHTML = `
+        // 代わりに、既知の日付範囲で記録を取得
+        const dates = [];
+        const birthDate = new Date('2025-11-07');
+        const today = new Date();
+        const daysDiff = Math.floor((today - birthDate) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // 過去の日付を生成
+        for (let i = 0; i < Math.min(daysDiff, 30); i++) {
+            const checkDate = new Date(birthDate);
+            checkDate.setDate(checkDate.getDate() + i);
+            const dateStr = checkDate.toISOString().split('T')[0];
+            dates.push(dateStr);
+        }
+        
+        const container = document.getElementById('allEntriesArea');
+        container.innerHTML = '';
+        let hasAnyEntries = false;
+        
+        // 新しい順（降順）でループ
+        for (const date of dates.reverse()) {
+            // 該当日の記録を取得
+            const entriesRes = await fetch(`/api/entries/${date}`);
+            const entriesData = await entriesRes.json();
+            
+            if (entriesData.success && entriesData.data.length > 0) {
+                hasAnyEntries = true;
+                const dayAge = calculateDayAge(date);
+                const section = createDateSection(date, dayAge, entriesData.data);
+                container.innerHTML += section;
+            }
+        }
+        
+        if (!hasAnyEntries) {
+            container.innerHTML = `
                 <div class="text-center text-gray-500 py-12">
                     <p class="text-2xl font-bold mb-4">まだ記録がありません</p>
                     <a href="/post" class="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 transition shadow-lg border-2 border-red-800" style="font-family: 'Noto Serif JP', serif;">
@@ -23,27 +54,6 @@ async function loadAllEntries() {
                     </a>
                 </div>
             `;
-            return;
-        }
-        
-        // 日付ごとに記録を取得
-        const allDates = datesData.data;
-        const container = document.getElementById('allEntriesArea');
-        container.innerHTML = '';
-        
-        // 新しい順（降順）でループ
-        for (const dateInfo of allDates) {
-            const date = dateInfo.entry_date;
-            const dayAge = dateInfo.day_age;
-            
-            // 該当日の記録を取得
-            const entriesRes = await fetch(`/api/entries/${date}`);
-            const entriesData = await entriesRes.json();
-            
-            if (entriesData.success && entriesData.data.length > 0) {
-                const section = createDateSection(date, dayAge, entriesData.data);
-                container.innerHTML += section;
-            }
         }
     } catch (error) {
         console.error('Error loading entries:', error);
@@ -53,6 +63,15 @@ async function loadAllEntries() {
             </div>
         `;
     }
+}
+
+// 日齢を計算
+function calculateDayAge(dateString) {
+    const birthDate = new Date(BIRTH_DATE + 'T00:00:00+09:00');
+    const targetDate = new Date(dateString + 'T00:00:00+09:00');
+    const diffTime = targetDate.getTime() - birthDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays + 1;
 }
 
 // 日付ごとのセクションを生成

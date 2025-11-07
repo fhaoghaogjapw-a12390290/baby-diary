@@ -92,13 +92,28 @@ app.get('/api/entries/day/:dayAge', async (c) => {
 // 記録が存在する日付の一覧を取得
 app.get('/api/entries/dates', async (c) => {
   try {
-    const { results } = await c.env.DB.prepare(`
-      SELECT DISTINCT entry_date, day_age, 
-             COUNT(*) as entry_count
-      FROM entries 
-      GROUP BY entry_date
-      ORDER BY entry_date DESC
+    // まずすべてのエントリを取得
+    const { results: allEntries } = await c.env.DB.prepare(`
+      SELECT * FROM entries ORDER BY entry_date DESC
     `).all();
+    
+    // 日付ごとにグループ化
+    const dateMap = new Map();
+    for (const entry of allEntries as Entry[]) {
+      if (!dateMap.has(entry.entry_date)) {
+        dateMap.set(entry.entry_date, {
+          entry_date: entry.entry_date,
+          day_age: entry.day_age,
+          entry_count: 0
+        });
+      }
+      const dateInfo = dateMap.get(entry.entry_date);
+      dateInfo.entry_count++;
+    }
+    
+    const results = Array.from(dateMap.values()).sort((a, b) => 
+      b.entry_date.localeCompare(a.entry_date)
+    );
 
     return c.json<ApiResponse>({
       success: true,
