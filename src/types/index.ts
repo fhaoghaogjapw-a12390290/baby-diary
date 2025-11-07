@@ -10,7 +10,7 @@ export type User = {
   username: string;
   password_hash: string;
   display_name: string;
-  person_id: 'minato' | 'araga' | 'ryu';
+  person_id: 'minato' | 'araga';
   created_at: string;
 };
 
@@ -19,7 +19,7 @@ export type Entry = {
   id: number;
   entry_date: string;
   day_age: number;
-  person: 'minato' | 'araga' | 'ryu';
+  person: 'minato' | 'araga';
   title: string;
   image_url: string;
   created_at: string;
@@ -29,7 +29,7 @@ export type Entry = {
 export type EntryInput = {
   entry_date: string;
   day_age: number;
-  person: 'minato' | 'araga' | 'ryu';
+  person: 'minato' | 'araga';
   title: string;
   image_url: string;
 };
@@ -59,20 +59,22 @@ export type LoginRequest = {
 export type AuthPayload = {
   userId: number;
   username: string;
-  person_id: 'minato' | 'araga' | 'ryu';
+  person_id: 'minato' | 'araga';
   display_name: string;
 };
 
 // Constants
-export const BIRTH_DATE = '2025-11-07';
+export const BIRTH_DATE_MINATO = '2025-11-07';
+export const BIRTH_DATE_ARAGA = '1998-10-01';
+// Backward compatibility
+export const BIRTH_DATE = BIRTH_DATE_MINATO;
+
 export const PERSON_DISPLAY_NAMES = {
   minato: 'みなと',
   araga: 'あらが',
-  ryu: 'りゅう',
 } as const;
 
 export const PERSON_EMOJIS = {
   minato: '👶',
-  araga: '🧑',
-  ryu: '🧑',
+  araga: '🎸',
 } as const;

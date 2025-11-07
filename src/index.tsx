@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 import type { Bindings, Entry, ApiResponse } from './types'
-import { calculateDayAgeFromDate, calculateDateFromDayAge } from './utils/date'
+import { calculateDayAgeFromDate, calculateDateFromDayAge, calculateAragaDayAge } from './utils/date'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -14,13 +14,20 @@ app.use('/static/*', serveStatic({ root: './' }))
 
 // ===== API Routes =====
 
-// 最新の記録を取得（更新日時順）
+// 最新の記録を取得（各人1つずつ、計2件）
 app.get('/api/entries/latest', async (c) => {
   try {
+    // 各人の最新記録を1つずつ取得
     const { results } = await c.env.DB.prepare(`
-      SELECT * FROM entries 
-      ORDER BY updated_at DESC
-      LIMIT 3
+      SELECT * FROM (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY person ORDER BY updated_at DESC) as rn
+        FROM entries
+      ) WHERE rn = 1
+      ORDER BY 
+        CASE person 
+          WHEN 'araga' THEN 1 
+          WHEN 'minato' THEN 2 
+        END
     `).all();
 
     return c.json<ApiResponse<Entry[]>>({
@@ -44,9 +51,8 @@ app.get('/api/entries/:date', async (c) => {
       WHERE entry_date = ? 
       ORDER BY 
         CASE person 
-          WHEN 'minato' THEN 1 
-          WHEN 'araga' THEN 2 
-          WHEN 'ryu' THEN 3 
+          WHEN 'araga' THEN 1 
+          WHEN 'minato' THEN 2 
         END
     `).bind(date).all();
 
@@ -71,9 +77,8 @@ app.get('/api/entries/day/:dayAge', async (c) => {
       WHERE day_age = ? 
       ORDER BY 
         CASE person 
-          WHEN 'minato' THEN 1 
-          WHEN 'araga' THEN 2 
-          WHEN 'ryu' THEN 3 
+          WHEN 'araga' THEN 1 
+          WHEN 'minato' THEN 2 
         END
     `).bind(dayAge).all();
 
@@ -210,7 +215,7 @@ app.post('/api/auth/select', async (c) => {
   try {
     const { person_id } = await c.req.json();
 
-    if (!person_id || !['minato', 'araga', 'ryu'].includes(person_id)) {
+    if (!person_id || !['minato', 'araga'].includes(person_id)) {
       return c.json<ApiResponse>({
         success: false,
         error: '無効なユーザーです'
@@ -254,6 +259,7 @@ app.post('/api/auth/select', async (c) => {
 app.get('/', (c) => {
   const today = new Date().toISOString().split('T')[0];
   const currentDayAge = calculateDayAgeFromDate(today);
+  const currentAragaDayAge = calculateAragaDayAge(today);
 
   return c.html(`
     <!DOCTYPE html>
@@ -261,44 +267,84 @@ app.get('/', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>みなとの時間、ふたりの時間</title>
+        <title>みなととあらがの成長記録</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     </head>
-    <body class="bg-gradient-to-br from-red-50 via-white to-red-50 min-h-screen">
-        <!-- 日の丸装飾 -->
-        <div class="fixed top-8 right-8 w-24 h-24 bg-red-600 rounded-full opacity-20 pointer-events-none z-0"></div>
-        <div class="fixed bottom-8 left-8 w-32 h-32 bg-red-600 rounded-full opacity-10 pointer-events-none z-0"></div>
-        
-        <div class="container mx-auto px-4 py-12 relative z-10">
+    <body class="min-h-screen" style="background: linear-gradient(135deg, #2c5a5a 0%, #1a3d3d 100%);">
+        <!-- パスワード認証画面 -->
+        <div id="authScreen" class="fixed inset-0 flex items-center justify-center z-50" style="background: linear-gradient(135deg, #2c5a5a 0%, #1a3d3d 100%);">
+            <!-- 日の丸背景 -->
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-600 rounded-full opacity-20"></div>
+            
+            <div class="relative bg-amber-50 shadow-2xl p-12 max-w-md w-full border-8" style="border-color: #8B4513; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                <h1 class="text-5xl font-bold mb-8 text-center" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em;">
+                    みなととあらがの<br>成長記録
+                </h1>
+                <div class="w-24 h-24 bg-red-600 rounded-full mx-auto mb-8 shadow-lg"></div>
+                <form onsubmit="checkPassword(event)">
+                    <label class="block font-bold mb-4 text-xl text-center" style="font-family: 'Noto Serif JP', serif; color: #8B4513;">
+                        パスワードを入力
+                    </label>
+                    <input type="password" id="passwordInput" 
+                           class="w-full border-4 px-4 py-3 text-lg text-center mb-6 bg-white" 
+                           style="border-color: #8B4513; font-family: 'Noto Serif JP', serif;"
+                           placeholder="パスワード" required>
+                    <button type="submit" 
+                            class="w-full text-white font-bold py-4 px-8 transition duration-300 shadow-lg text-xl border-4"
+                            style="background-color: #8B4513; border-color: #654321; font-family: 'Noto Serif JP', serif;">
+                        入室
+                    </button>
+                    <p id="authError" class="text-red-600 text-center mt-4 font-bold hidden bg-red-100 p-2 border-2 border-red-600">パスワードが正しくありません</p>
+                </form>
+            </div>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <div id="mainContent" class="hidden">
+            <!-- レトロな装飾要素 -->
+            <div class="fixed top-8 right-8 w-32 h-32 bg-red-600 rounded-full opacity-30 pointer-events-none z-0"></div>
+            <div class="fixed bottom-8 left-8 w-40 h-40 bg-red-600 rounded-full opacity-20 pointer-events-none z-0"></div>
+            <div class="fixed top-1/2 right-1/4 w-24 h-24 bg-amber-100 rounded-full opacity-10 pointer-events-none z-0"></div>
+            
+            <div class="container mx-auto px-4 py-12 relative z-10">
             <!-- ヘッダー -->
             <header class="text-center mb-16">
-                <div class="mb-8">
-                    <h1 class="text-5xl md:text-7xl font-bold text-red-700 mb-4" style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.1em;">
-                        みなととおれらの成長記録
+                <div class="mb-8 bg-amber-50 p-8 border-8 shadow-2xl mx-auto max-w-4xl" style="border-color: #8B4513; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                    <div class="w-32 h-32 bg-red-600 rounded-full mx-auto mb-6 shadow-lg"></div>
+                    <h1 class="text-5xl md:text-7xl font-bold mb-6" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+                        みなととあらがの<br>成長記録
                     </h1>
-                    <div class="w-32 h-1 bg-red-600 mx-auto mb-6"></div>
-                    <p class="text-3xl text-gray-700 font-bold" style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.2em;">
+                    <div class="h-2 mx-auto mb-6" style="background-color: #8B4513; width: 200px;"></div>
+                    <p class="text-3xl font-bold mb-8" style="font-family: 'Noto Serif JP', serif; color: #B22222; letter-spacing: 0.3em;">
                         誇り高き日本を作ろう
                     </p>
-                </div>
-                <div class="inline-block bg-white rounded-2xl px-10 py-6 mt-6 border-2 border-red-600 shadow-xl">
-                    <p class="text-xl text-gray-700 font-bold mb-2">
-                        みなと 誕生日: 2025年11月7日
-                    </p>
-                    <p class="text-4xl font-black text-red-600 mt-3">
-                        生後 ${currentDayAge} 日目
-                    </p>
+                    <div class="bg-white px-8 py-4 inline-block border-4 shadow-lg" style="border-color: #8B4513;">
+                        <p class="text-xl font-bold mb-2" style="color: #8B4513;">
+                            みなと 誕生日: 2025年11月7日
+                        </p>
+                        <p class="text-xl font-bold mb-4" style="color: #8B4513;">
+                            あらが 誕生日: 1998年10月1日
+                        </p>
+                        <p id="minatoDayAgeDisplay" class="text-4xl font-black mt-2" style="color: #B22222;">
+                            みなと生後 ${currentDayAge} 日目
+                        </p>
+                        <p id="aragaDayAgeDisplay" class="text-4xl font-black mt-2" style="color: #B22222;">
+                            あらが生後 ${currentAragaDayAge} 日目
+                        </p>
+                    </div>
                 </div>
             </header>
 
             <!-- 最新の記録 -->
             <section class="mb-12">
-                <h2 class="text-3xl font-bold text-red-700 mb-8 text-center border-b-4 border-red-600 pb-4 inline-block w-full" style="font-family: 'Noto Serif JP', serif;">
-                    直近で更新された記録
-                </h2>
-                <div id="latest-entries" class="grid md:grid-cols-3 gap-6">
-                    <div class="text-center text-gray-500 col-span-3">
+                <div class="bg-amber-50 p-6 border-8 mb-8 text-center shadow-xl" style="border-color: #8B4513;">
+                    <h2 class="text-4xl font-bold" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em;">
+                        直近で更新された記録
+                    </h2>
+                </div>
+                <div id="latest-entries" class="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                    <div class="text-center text-gray-500 col-span-2">
                         読み込み中...
                     </div>
                 </div>
@@ -306,15 +352,79 @@ app.get('/', (c) => {
 
             <!-- ナビゲーションボタン -->
             <div class="flex flex-col md:flex-row gap-6 justify-center mt-12">
-                <a href="/view" class="bg-red-600 hover:bg-red-700 text-white font-bold py-6 px-12 text-center transition duration-300 shadow-lg text-xl border-2 border-red-800" style="font-family: 'Noto Serif JP', serif;">
+                <a href="/view" class="text-white font-bold py-6 px-12 text-center transition duration-300 shadow-2xl text-2xl border-8" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.2em;">
                     日記を見る
                 </a>
-                <a href="/post" class="bg-white hover:bg-gray-50 text-red-600 font-bold py-6 px-12 text-center transition duration-300 shadow-lg text-xl border-2 border-red-600" style="font-family: 'Noto Serif JP', serif;">
+                <a href="/post" class="bg-amber-50 font-bold py-6 px-12 text-center transition duration-300 shadow-2xl text-2xl border-8" style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513; letter-spacing: 0.2em;">
                     今日の記録を投稿する
                 </a>
             </div>
         </div>
+        </div>
 
+        <script>
+            // パスワード認証
+            const CORRECT_PASSWORD = 'minato1107';
+            
+            // ページ読み込み時にセッションチェック
+            document.addEventListener('DOMContentLoaded', () => {
+                const isAuthenticated = sessionStorage.getItem('authenticated');
+                if (isAuthenticated === 'true') {
+                    showMainContent();
+                }
+            });
+            
+            function checkPassword(event) {
+                event.preventDefault();
+                const password = document.getElementById('passwordInput').value;
+                const errorEl = document.getElementById('authError');
+                
+                if (password === CORRECT_PASSWORD) {
+                    sessionStorage.setItem('authenticated', 'true');
+                    showMainContent();
+                } else {
+                    errorEl.classList.remove('hidden');
+                    document.getElementById('passwordInput').value = '';
+                    document.getElementById('passwordInput').focus();
+                }
+            }
+            
+            function showMainContent() {
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+                
+                // 素数判定
+                checkPrimeDay();
+            }
+            
+            // 素数判定関数
+            function isPrime(num) {
+                if (num < 2) return false;
+                if (num === 2) return true;
+                if (num % 2 === 0) return false;
+                
+                for (let i = 3; i <= Math.sqrt(num); i += 2) {
+                    if (num % i === 0) return false;
+                }
+                return true;
+            }
+            
+            // 素数記念日チェック
+            function checkPrimeDay() {
+                const minatoDayAgeEl = document.getElementById('minatoDayAgeDisplay');
+                const aragaDayAgeEl = document.getElementById('aragaDayAgeDisplay');
+                
+                const minatoDayAge = parseInt('${currentDayAge}');
+                if (isPrime(minatoDayAge)) {
+                    minatoDayAgeEl.innerHTML = 'みなと生後 ' + minatoDayAge + ' 日目<br><span style="color: #DC143C; font-size: 1.2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🎊 素数記念日 🎊</span>';
+                }
+                
+                const aragaDayAge = parseInt('${currentAragaDayAge}');
+                if (isPrime(aragaDayAge)) {
+                    aragaDayAgeEl.innerHTML = 'あらが生後 ' + aragaDayAge + ' 日目<br><span style="color: #DC143C; font-size: 1.2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🎊 素数記念日 🎊</span>';
+                }
+            }
+        </script>
         <script>
             // 最新の記録を取得
             fetch('/api/entries/latest')
@@ -324,45 +434,70 @@ app.get('/', (c) => {
                         const container = document.getElementById('latest-entries');
                         const personColors = {
                             'minato': 'pink',
-                            'araga': 'blue',
-                            'ryu': 'green'
+                            'araga': 'blue'
                         };
                         const personNames = {
                             'minato': 'みなと',
-                            'araga': 'あらが',
-                            'ryu': 'りゅう'
+                            'araga': 'あらが'
                         };
                         const personIcons = {
                             'minato': 'fa-baby',
-                            'araga': 'fa-user',
-                            'ryu': 'fa-user'
+                            'araga': 'fa-user'
                         };
 
                         const emojis = {
                             'minato': '👶',
-                            'araga': '🎸',
-                            'ryu': '🎯'
+                            'araga': '🎸'
                         };
                         
-                        // あらが→みなと→りゅうの順番に並び替え
-                        const personOrder = ['araga', 'minato', 'ryu'];
+                        // あらが→みなとの順番に並び替え
+                        const personOrder = ['araga', 'minato'];
                         const sortedData = data.data.sort((a, b) => {
                             return personOrder.indexOf(a.person) - personOrder.indexOf(b.person);
                         });
                         
+                        // 日齢計算関数
+                        const BIRTH_DATE_MINATO = '2025-11-07';
+                        const BIRTH_DATE_ARAGA = '1998-10-01';
+                        
+                        function calculateDayAge(dateString, birthDateString) {
+                            const [birthYear, birthMonth, birthDay] = birthDateString.split('-').map(Number);
+                            const [targetYear, targetMonth, targetDay] = dateString.split('-').map(Number);
+                            
+                            const birthDate = new Date(birthYear, birthMonth - 1, birthDay);
+                            const targetDate = new Date(targetYear, targetMonth - 1, targetDay);
+                            
+                            const diffTime = targetDate.getTime() - birthDate.getTime();
+                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            return diffDays + 1;
+                        }
+                        
                         container.innerHTML = sortedData.map(entry => {
-                            const color = personColors[entry.person];
+                            // 各人の日齢を計算
+                            const minatoDayAge = calculateDayAge(entry.entry_date, BIRTH_DATE_MINATO);
+                            const aragaDayAge = calculateDayAge(entry.entry_date, BIRTH_DATE_ARAGA);
+                            
+                            const minatoPrimeLabel = isPrime(minatoDayAge) ? ' <span style="color: #FFD700; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">🎊素数記念日🎊</span>' : '';
+                            const aragaPrimeLabel = isPrime(aragaDayAge) ? ' <span style="color: #FFD700; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">🎊素数記念日🎊</span>' : '';
+                            
+                            // 各人に対応する日齢とラベルを選択
+                            const dayAgeText = entry.person === 'minato' 
+                                ? \`みなと生後\${minatoDayAge}日目\${minatoPrimeLabel}\`
+                                : \`あらが生後\${aragaDayAge}日目\${aragaPrimeLabel}\`;
+                            
                             return \`
-                                <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition duration-300 border-2 border-\${color}-400">
-                                    <div class="bg-\${color}-100 p-6 border-b-2 border-\${color}-400">
-                                        <h3 class="font-bold text-2xl text-\${color}-800 text-center" style="font-family: 'Noto Serif JP', serif;">
+                                <div class="bg-amber-50 shadow-2xl overflow-hidden hover:shadow-2xl transition duration-300 border-8 cursor-pointer" 
+                                     style="border-color: #8B4513; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"
+                                     onclick="showFullEntry('\${entry.person}', '\${entry.entry_date}', '\${entry.image_url}', '\${entry.title}', \${entry.day_age}, \${minatoDayAge}, \${aragaDayAge})">
+                                    <div class="p-6 border-b-4" style="background-color: #D2691E; border-color: #8B4513;">
+                                        <h3 class="font-bold text-3xl text-center text-white mb-2" style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.2em; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
                                             \${emojis[entry.person]} \${personNames[entry.person]}
                                         </h3>
-                                        <p class="text-sm text-gray-600 mt-2 text-center">\${entry.entry_date}（みなと\${entry.day_age}日目）</p>
+                                        <p class="text-sm text-amber-100 text-center font-bold">\${entry.entry_date}（\${dayAgeText}）</p>
                                     </div>
-                                    <img src="\${entry.image_url}" alt="\${entry.title}" class="w-full h-64 object-cover">
-                                    <div class="p-6 bg-gray-50">
-                                        <p class="text-center text-xl font-bold text-gray-800" style="font-family: 'Noto Serif JP', serif;">\${entry.title}</p>
+                                    <img src="\${entry.image_url}" alt="\${entry.title}" class="w-full h-64 object-cover border-y-4" style="border-color: #8B4513;">
+                                    <div class="p-6">
+                                        <p class="text-center text-xl font-bold" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.1em;">\${entry.title}</p>
                                     </div>
                                 </div>
                             \`;
@@ -370,6 +505,65 @@ app.get('/', (c) => {
                     }
                 })
                 .catch(err => console.error('Error loading entries:', err));
+            
+            // 日記を全面表示する関数
+            function showFullEntry(person, date, imageUrl, title, dayAge, minatoDayAge, aragaDayAge) {
+                const personConfig = {
+                    'minato': { name: 'みなと', emoji: '👶', color: 'pink' },
+                    'araga': { name: 'あらが', emoji: '🎸', color: 'blue' }
+                };
+                const config = personConfig[person];
+                
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                };
+                
+                // 各人の素数記念日ラベル
+                const minatoPrimeLabel = isPrime(minatoDayAge) ? ' <span style="color: #FFD700; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">🎊素数記念日🎊</span>' : '';
+                const aragaPrimeLabel = isPrime(aragaDayAge) ? ' <span style="color: #FFD700; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">🎊素数記念日🎊</span>' : '';
+                
+                // 日齢表示テキスト
+                const dayAgeText = person === 'minato' 
+                    ? \`みなと生後\${minatoDayAge}日目\${minatoPrimeLabel}\`
+                    : \`あらが生後\${aragaDayAge}日目\${aragaPrimeLabel}\`;
+                
+                modal.innerHTML = \`
+                    <div class="bg-amber-50 shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border-8" style="border-color: #8B4513; box-shadow: 0 20px 60px rgba(0,0,0,0.7);">
+                        <div class="p-8 border-b-8" style="background-color: #D2691E; border-color: #8B4513;">
+                            <h2 class="font-bold text-5xl text-center mb-4 text-white" style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.2em; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                                \${config.emoji} \${config.name}
+                            </h2>
+                            <p class="text-center text-amber-100 text-xl font-bold">
+                                \${date}（\${dayAgeText}）
+                            </p>
+                        </div>
+                        <img src="\${imageUrl}" alt="\${title}" class="w-full max-h-[500px] object-contain bg-gray-100 border-y-8" style="border-color: #8B4513;">
+                        <div class="p-8">
+                            <p class="text-center text-3xl font-bold mb-8" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.1em;">
+                                \${title}
+                            </p>
+                            <div class="flex justify-center gap-4">
+                                <button onclick="location.href='/post?date=\${date}&person=\${person}'" 
+                                        class="text-white font-bold py-4 px-10 transition shadow-2xl text-xl border-8" 
+                                        style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.1em;">
+                                    この日記を編集する
+                                </button>
+                                <button onclick="this.closest('.fixed').remove()" 
+                                        class="bg-amber-50 font-bold py-4 px-10 transition shadow-2xl text-xl border-8" 
+                                        style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513; letter-spacing: 0.1em;">
+                                    閉じる
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                \`;
+                
+                document.body.appendChild(modal);
+            }
         </script>
     </body>
     </html>
@@ -384,32 +578,81 @@ app.get('/view', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>日記を見る - みなとの時間、ふたりの時間</title>
+        <title>日記を見る - みなととあらがの成長記録</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     </head>
-    <body class="bg-gradient-to-br from-red-50 via-white to-red-50 min-h-screen">
+    <body class="min-h-screen" style="background: linear-gradient(135deg, #2c5a5a 0%, #1a3d3d 100%);">
         <div class="container mx-auto px-4 py-8 max-w-6xl">
             <!-- ヘッダー -->
-            <header class="mb-8">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-4xl font-bold text-red-700" style="font-family: 'Noto Serif JP', serif;">
-                        すべての記録
+            <header class="mb-8 bg-amber-50 p-8 border-8 shadow-2xl" style="border-color: #8B4513; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div class="text-center mb-6">
+                    <h1 class="text-5xl md:text-6xl font-bold mb-2" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.3em; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">
+                        日記を見る
                     </h1>
-                    <a href="/" class="text-red-600 hover:text-red-800 font-bold text-xl" style="font-family: 'Noto Serif JP', serif;">
+                    <div class="h-2 w-32 mx-auto mt-4" style="background-color: #8B4513;"></div>
+                </div>
+                <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+                    <a href="/post" class="w-full sm:w-auto bg-white hover:bg-amber-50 font-bold py-4 px-10 text-center transition duration-300 shadow-lg text-xl border-8" style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513; letter-spacing: 0.1em;">
+                        既存の記録を編集する
+                    </a>
+                    <a href="/" class="w-full sm:w-auto text-white hover:opacity-90 font-bold py-4 px-10 text-center transition duration-300 shadow-lg text-xl border-8" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.1em;">
                         TOPへ戻る
                     </a>
                 </div>
             </header>
 
-            <!-- すべての記録を表示 -->
-            <div id="allEntriesArea">
-                <div class="text-center text-gray-500 py-8">
-                    読み込み中...
+            <!-- 日齢検索 -->
+            <div class="bg-amber-50 shadow-2xl p-6 mb-8 border-8" style="border-color: #8B4513; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div class="flex flex-wrap items-center gap-4 justify-center">
+                    <label class="font-bold text-xl" style="font-family: 'Noto Serif JP', serif; color: #8B4513;">みなと</label>
+                    <input type="number" id="dayAgeInput" min="1" placeholder="1" 
+                           class="border-4 px-4 py-2 w-24 text-center text-lg font-bold bg-white" style="border-color: #8B4513; color: #8B4513;">
+                    <label class="font-bold text-xl" style="font-family: 'Noto Serif JP', serif; color: #8B4513;">日目へジャンプ</label>
+                    <button onclick="jumpToDayAge()" 
+                            class="text-white font-bold px-8 py-2 transition shadow-lg border-4 text-lg" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321;">
+                        移動
+                    </button>
+                </div>
+            </div>
+
+            <!-- カレンダー -->
+            <div class="bg-amber-50 shadow-2xl p-6 mb-8 border-8" style="border-color: #8B4513; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="changeMonth(-1)" class="font-bold text-3xl px-4 py-2 border-4 shadow-lg hover:opacity-80 transition" style="color: #8B4513; border-color: #8B4513; background-color: white;">
+                        ←
+                    </button>
+                    <h2 id="calendarTitle" class="text-3xl font-bold" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em;"></h2>
+                    <button onclick="changeMonth(1)" class="font-bold text-3xl px-4 py-2 border-4 shadow-lg hover:opacity-80 transition" style="color: #8B4513; border-color: #8B4513; background-color: white;">
+                        →
+                    </button>
+                </div>
+                <div id="calendar" class="grid grid-cols-7 gap-2"></div>
+            </div>
+
+            <!-- 記録表示エリア -->
+            <div id="entriesArea" class="hidden">
+                <div class="bg-amber-50 shadow-2xl p-6 mb-6 sticky top-0 z-10 border-8" style="border-color: #8B4513; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <h2 id="selectedDate" class="text-3xl font-bold text-center mb-2" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.1em;"></h2>
+                    <p id="selectedDayAge" class="text-xl text-center font-bold" style="color: #B22222;"></p>
+                </div>
+
+                <div id="entriesCards" class="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8 max-w-5xl mx-auto">
+                    <!-- 記録カードがここに表示される -->
+                </div>
+
+                <div class="flex justify-between max-w-5xl mx-auto">
+                    <button onclick="navigateDay(-1)" class="text-white font-bold py-4 px-10 transition shadow-2xl text-xl border-8 hover:opacity-90" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.1em;">
+                        ← 前の日
+                    </button>
+                    <button onclick="navigateDay(1)" class="text-white font-bold py-4 px-10 transition shadow-2xl text-xl border-8 hover:opacity-90" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.1em;">
+                        次の日 →
+                    </button>
                 </div>
             </div>
         </div>
 
+        <script src="/static/auth.js"></script>
         <script src="/static/view.js"></script>
     </body>
     </html>
@@ -424,41 +667,40 @@ app.get('/post', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>記録を投稿 - みなとの時間、ふたりの時間</title>
+        <title>記録を投稿 - みなととあらがの成長記録</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     </head>
-    <body class="bg-gradient-to-br from-red-50 via-white to-red-50 min-h-screen">
+    <body class="min-h-screen" style="background: linear-gradient(135deg, #2c5a5a 0%, #1a3d3d 100%);">
         <div class="container mx-auto px-4 py-8 max-w-4xl">
             <!-- ヘッダー -->
-            <header class="mb-8">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-4xl font-bold text-red-700" style="font-family: 'Noto Serif JP', serif;">
+            <header class="mb-8 bg-amber-50 p-8 border-8 shadow-2xl" style="border-color: #8B4513; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div class="text-center mb-6">
+                    <h1 class="text-4xl md:text-5xl font-bold mb-2" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.3em; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">
                         今日の記録を投稿
                     </h1>
-                    <a href="/" class="text-red-600 hover:text-red-800 font-bold text-xl" style="font-family: 'Noto Serif JP', serif;">
+                    <div class="h-2 w-32 mx-auto mt-4" style="background-color: #8B4513;"></div>
+                </div>
+                <div class="flex justify-center">
+                    <a href="/" class="text-white hover:opacity-90 font-bold py-4 px-10 text-center transition duration-300 shadow-lg text-xl border-8" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.1em;">
                         TOPへ戻る
                     </a>
                 </div>
             </header>
 
             <!-- ユーザー選択フォーム -->
-            <div id="selectForm" class="bg-white rounded-lg shadow-xl p-8 border-2 border-red-600">
-                <h2 class="text-3xl font-bold text-red-700 mb-8 text-center border-b-2 border-red-600 pb-4" style="font-family: 'Noto Serif JP', serif;">誰の記録？</h2>
+            <div id="selectForm" class="bg-amber-50 shadow-2xl p-8 border-8" style="border-color: #8B4513; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <h2 class="text-4xl font-bold mb-8 text-center pb-4 border-b-4" style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513; letter-spacing: 0.2em;">誰の記録？</h2>
                 <form onsubmit="handleUserSelect(event)">
                     <div class="mb-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <button type="button" onclick="selectUser('minato')" class="user-select-btn bg-pink-100 hover:bg-pink-200 text-pink-800 font-bold py-10 px-6 transition duration-300 shadow-lg border-2 border-pink-400 hover:border-pink-600">
-                                <div class="text-7xl mb-3">👶</div>
-                                <div class="text-2xl" style="font-family: 'Noto Serif JP', serif;">みなと</div>
-                            </button>
-                            <button type="button" onclick="selectUser('araga')" class="user-select-btn bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-10 px-6 transition duration-300 shadow-lg border-2 border-blue-400 hover:border-blue-600">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button type="button" onclick="selectUser('araga')" class="user-select-btn bg-white hover:bg-amber-50 font-bold py-10 px-6 transition duration-300 shadow-2xl border-8 hover:opacity-90" style="border-color: #8B4513; color: #8B4513;">
                                 <div class="text-7xl mb-3">🎸</div>
-                                <div class="text-2xl" style="font-family: 'Noto Serif JP', serif;">あらが</div>
+                                <div class="text-3xl" style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.2em;">あらが</div>
                             </button>
-                            <button type="button" onclick="selectUser('ryu')" class="user-select-btn bg-green-100 hover:bg-green-200 text-green-800 font-bold py-10 px-6 transition duration-300 shadow-lg border-2 border-green-400 hover:border-green-600">
-                                <div class="text-7xl mb-3">🎯</div>
-                                <div class="text-2xl" style="font-family: 'Noto Serif JP', serif;">りゅう</div>
+                            <button type="button" onclick="selectUser('minato')" class="user-select-btn bg-white hover:bg-amber-50 font-bold py-10 px-6 transition duration-300 shadow-2xl border-8 hover:opacity-90" style="border-color: #8B4513; color: #8B4513;">
+                                <div class="text-7xl mb-3">👶</div>
+                                <div class="text-3xl" style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.2em;">みなと</div>
                             </button>
                         </div>
                     </div>
@@ -467,41 +709,41 @@ app.get('/post', (c) => {
 
             <!-- 投稿フォーム -->
             <div id="postForm" class="hidden">
-                <div class="bg-white rounded-lg shadow-xl p-8 border-2 border-red-600">
-                    <div class="mb-6 flex justify-between items-center border-b-2 border-red-600 pb-4">
-                        <h2 class="text-3xl font-bold text-red-700" style="font-family: 'Noto Serif JP', serif;">
+                <div class="bg-amber-50 shadow-2xl p-8 border-8" style="border-color: #8B4513; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <div class="mb-6 flex justify-between items-center border-b-4 pb-4" style="border-color: #8B4513;">
+                        <h2 class="text-3xl font-bold" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.1em;">
                             <span id="displayEmoji"></span> <span id="displayName"></span>の記録
                         </h2>
-                        <button onclick="logout()" class="text-lg text-gray-600 hover:text-gray-800 font-bold" style="font-family: 'Noto Serif JP', serif;">
+                        <button onclick="logout()" class="text-lg font-bold hover:opacity-80 transition px-4 py-2 border-4" style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513;">
                             別の人に変更
                         </button>
                     </div>
 
                     <form onsubmit="handleSubmit(event)">
                         <div class="mb-6">
-                            <label class="block text-gray-700 font-bold mb-2 text-lg" style="font-family: 'Noto Serif JP', serif;">日付</label>
-                            <input type="date" id="entryDate" class="w-full border-2 border-gray-300 rounded px-4 py-3 text-lg focus:border-red-600 focus:ring-2 focus:ring-red-200" required>
-                            <p id="dayAgeDisplay" class="text-lg text-red-600 mt-2 font-bold"></p>
+                            <label class="block font-bold mb-2 text-xl" style="font-family: 'Noto Serif JP', serif; color: #8B4513;">日付</label>
+                            <input type="date" id="entryDate" class="w-full border-4 px-4 py-3 text-lg bg-white" style="border-color: #8B4513; color: #8B4513;" required>
+                            <p id="dayAgeDisplay" class="text-xl mt-2 font-bold" style="color: #B22222;"></p>
                         </div>
 
                         <div class="mb-6">
-                            <label class="block text-gray-700 font-bold mb-2 text-lg" style="font-family: 'Noto Serif JP', serif;">見出し（最大50文字）</label>
-                            <input type="text" id="title" maxlength="50" class="w-full border-2 border-gray-300 rounded px-4 py-3 text-lg focus:border-red-600 focus:ring-2 focus:ring-red-200" required placeholder="今日の出来事を一言で">
+                            <label class="block font-bold mb-2 text-xl" style="font-family: 'Noto Serif JP', serif; color: #8B4513;">見出し（最大50文字）</label>
+                            <input type="text" id="title" maxlength="50" class="w-full border-4 px-4 py-3 text-lg bg-white" style="border-color: #8B4513; color: #8B4513;" required placeholder="今日の出来事を一言で">
                         </div>
 
                         <div class="mb-6">
-                            <label class="block text-gray-700 font-bold mb-2 text-lg" style="font-family: 'Noto Serif JP', serif;">画像（JPG/PNG、最大5MB）</label>
-                            <input type="file" id="image" accept="image/jpeg,image/png" class="w-full border-2 border-gray-300 rounded px-4 py-3 bg-white focus:border-red-600" required>
+                            <label class="block font-bold mb-2 text-xl" style="font-family: 'Noto Serif JP', serif; color: #8B4513;">画像（JPG/PNG、最大5MB）</label>
+                            <input type="file" id="image" accept="image/jpeg,image/png" class="w-full border-4 px-4 py-3 bg-white" style="border-color: #8B4513;" required>
                             <div id="imagePreview" class="mt-4 hidden">
-                                <img id="previewImage" class="max-w-full h-auto rounded shadow-lg border-2 border-gray-300">
+                                <img id="previewImage" class="max-w-full h-auto shadow-lg border-8" style="border-color: #8B4513;">
                             </div>
                         </div>
 
                         <div class="flex gap-4">
-                            <button type="submit" id="submitBtn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-8 transition duration-300 shadow-lg text-xl border-2 border-red-800" style="font-family: 'Noto Serif JP', serif;">
+                            <button type="submit" id="submitBtn" class="flex-1 text-white font-bold py-4 px-8 transition duration-300 shadow-2xl text-2xl border-8 hover:opacity-90" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.2em;">
                                 投稿する
                             </button>
-                            <button type="button" id="editBtn" onclick="loadExistingEntry()" class="bg-white hover:bg-gray-50 text-red-600 font-bold py-4 px-8 transition duration-300 shadow-lg text-xl border-2 border-red-600 hidden" style="font-family: 'Noto Serif JP', serif;">
+                            <button type="button" id="editBtn" onclick="loadExistingEntry()" class="bg-amber-50 hover:bg-amber-100 font-bold py-4 px-8 transition duration-300 shadow-2xl text-xl border-8 hidden" style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513;">
                                 既存の記録を編集
                             </button>
                         </div>
@@ -513,6 +755,7 @@ app.get('/post', (c) => {
             <div id="message" class="mt-4 hidden"></div>
         </div>
 
+        <script src="/static/auth.js"></script>
         <script src="/static/post.js"></script>
     </body>
     </html>

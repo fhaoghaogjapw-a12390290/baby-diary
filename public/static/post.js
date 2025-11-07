@@ -1,29 +1,49 @@
-// みなとの時間、ふたりの時間 - 投稿ページ用JavaScript
+// みなととあらがの成長記録 - 投稿ページ用JavaScript
 
-const BIRTH_DATE = '2025-11-07';
+const BIRTH_DATE_MINATO = '2025-11-07';
+const BIRTH_DATE_ARAGA = '1998-10-01';
+const BIRTH_DATE = BIRTH_DATE_MINATO; // 後方互換性のため
 let currentUser = null;
 let isEditMode = false;
 
 const userEmojis = {
     'minato': '👶',
-    'araga': '🎸',
-    'ryu': '🎯'
+    'araga': '🎸'
 };
 
 const userNames = {
     'minato': 'みなと',
-    'araga': 'あらが',
-    'ryu': 'りゅう'
+    'araga': 'あらが'
 };
+
+// 素数判定関数
+function isPrime(num) {
+    if (num < 2) return false;
+    if (num === 2) return true;
+    if (num % 2 === 0) return false;
+    
+    for (let i = 3; i <= Math.sqrt(num); i += 2) {
+        if (num % i === 0) return false;
+    }
+    return true;
+}
 
 // ページ読み込み時に実行
 document.addEventListener('DOMContentLoaded', () => {
-    // ローカルストレージから認証情報を確認
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        showPostForm();
+    // URLパラメータを確認
+    const params = new URLSearchParams(window.location.search);
+    const dateParam = params.get('date');
+    const personParam = params.get('person');
+    
+    // 編集モードの場合（URLパラメータがある場合）
+    if (dateParam && personParam) {
+        selectUser(personParam).then(() => {
+            document.getElementById('entryDate').value = dateParam;
+            updateDayAgeDisplay();
+            loadExistingEntry();
+        });
     }
+    // それ以外の場合は常にユーザー選択画面を表示（localStorageを使わない）
 });
 
 // ユーザー選択処理
@@ -41,7 +61,7 @@ async function selectUser(person_id) {
         
         if (data.success) {
             currentUser = data.data.user;
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            // localStorageに保存しない（毎回選択させる）
             showPostForm();
         } else {
             showMessage(data.error || 'ユーザー選択に失敗しました', 'error');
@@ -56,7 +76,16 @@ async function selectUser(person_id) {
 function logout() {
     currentUser = null;
     isEditMode = false;
+    // localStorageを削除
     localStorage.removeItem('currentUser');
+    
+    // フォームをリセット
+    document.getElementById('title').value = '';
+    document.getElementById('image').value = '';
+    document.getElementById('image').setAttribute('required', 'required');
+    document.getElementById('imagePreview').classList.add('hidden');
+    document.getElementById('submitBtn').innerHTML = '投稿する';
+    
     document.getElementById('selectForm').classList.remove('hidden');
     document.getElementById('postForm').classList.add('hidden');
 }
@@ -94,19 +123,40 @@ function updateDayAgeDisplay() {
     const dateInput = document.getElementById('entryDate');
     const dayAgeDisplay = document.getElementById('dayAgeDisplay');
     
-    if (dateInput.value) {
-        const dayAge = calculateDayAge(dateInput.value);
-        dayAgeDisplay.textContent = `みなと ${dayAge} 日目`;
+    if (dateInput.value && currentUser) {
+        // 各人の日齢を計算
+        const minatoDayAge = calculateDayAgeFromBirth(dateInput.value, BIRTH_DATE_MINATO);
+        const aragaDayAge = calculateDayAgeFromBirth(dateInput.value, BIRTH_DATE_ARAGA);
+        
+        // みなとの日齢表示
+        const minatoPrimeLabel = isPrime(minatoDayAge) ? ' <span style="color: #DC143C; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🎊 素数記念日 🎊</span>' : '';
+        const minatoText = `みなと生後 ${minatoDayAge} 日目${minatoPrimeLabel}`;
+        
+        // あらがの日齢表示
+        const aragaPrimeLabel = isPrime(aragaDayAge) ? ' <span style="color: #DC143C; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🎊 素数記念日 🎊</span>' : '';
+        const aragaText = `あらが生後 ${aragaDayAge} 日目${aragaPrimeLabel}`;
+        
+        // 両方の日齢を表示
+        dayAgeDisplay.innerHTML = `${minatoText}<br>${aragaText}`;
     }
 }
 
-// 日齢を計算
-function calculateDayAge(dateString) {
-    const birthDate = new Date(BIRTH_DATE + 'T00:00:00+09:00');
-    const targetDate = new Date(dateString + 'T00:00:00+09:00');
+// 日齢を計算（汎用関数）
+function calculateDayAgeFromBirth(dateString, birthDateString) {
+    const [birthYear, birthMonth, birthDay] = birthDateString.split('-').map(Number);
+    const [targetYear, targetMonth, targetDay] = dateString.split('-').map(Number);
+    
+    const birthDate = new Date(birthYear, birthMonth - 1, birthDay);
+    const targetDate = new Date(targetYear, targetMonth - 1, targetDay);
+    
     const diffTime = targetDate.getTime() - birthDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     return diffDays + 1;
+}
+
+// 日齢を計算（後方互換性のため）
+function calculateDayAge(dateString) {
+    return calculateDayAgeFromBirth(dateString, BIRTH_DATE_MINATO);
 }
 
 // 既存の記録をチェック
