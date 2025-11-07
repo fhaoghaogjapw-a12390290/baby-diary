@@ -1,264 +1,236 @@
-// 定数
-const BIRTH_DATE = new Date('2025-11-07T00:00:00+09:00');
+// みなとの時間、ふたりの時間 - 閲覧ページ用JavaScript
 
-// 状態管理
-let currentMonth = new Date();
+const BIRTH_DATE = '2025-11-07';
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth();
 let selectedDate = null;
-let availableDates = [];
+let datesWithEntries = [];
 
-// 初期化
+// ページ読み込み時に実行
 document.addEventListener('DOMContentLoaded', () => {
-  // URLパラメータをチェック
-  const urlParams = new URLSearchParams(window.location.search);
-  const dateParam = urlParams.get('date');
-  const dayParam = urlParams.get('day');
-
-  if (dayParam) {
-    jumpToDayAge(parseInt(dayParam));
-  } else if (dateParam) {
-    loadEntriesForDate(dateParam);
-  }
-
-  // 今日の日付を設定
-  const today = new Date().toISOString().split('T')[0];
-  loadAvailableDates().then(() => {
+    loadDatesWithEntries();
     renderCalendar();
-  });
-
-  // キーボードショートカット
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      document.getElementById('dayAgeInput').focus();
-    }
-  });
 });
 
-// 利用可能な日付を取得
-async function loadAvailableDates() {
-  try {
-    const response = await fetch('/api/entries/dates');
-    const data = await response.json();
-    if (data.success) {
-      availableDates = data.data.map(d => ({
-        date: d.entry_date,
-        dayAge: d.day_age,
-        count: d.entry_count
-      }));
+// 記録がある日付の一覧を取得
+async function loadDatesWithEntries() {
+    try {
+        const res = await fetch('/api/entries/dates');
+        const data = await res.json();
+        if (data.success) {
+            datesWithEntries = data.data.map(d => ({
+                date: d.entry_date,
+                dayAge: d.day_age,
+                entryCount: d.entry_count
+            }));
+        }
+    } catch (error) {
+        console.error('Error loading dates:', error);
     }
-  } catch (error) {
-    console.error('Error loading available dates:', error);
-  }
 }
 
-// カレンダーをレンダリング
+// カレンダーを描画
 function renderCalendar() {
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-  
-  // タイトル更新
-  document.getElementById('calendarTitle').textContent = 
-    `${year}年${month + 1}月`;
-
-  // カレンダーのHTML生成
-  const calendar = document.getElementById('calendar');
-  calendar.innerHTML = '';
-
-  // 曜日ヘッダー
-  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-  weekdays.forEach(day => {
-    const dayEl = document.createElement('div');
-    dayEl.className = 'text-center font-bold text-gray-600 p-2';
-    dayEl.textContent = day;
-    calendar.appendChild(dayEl);
-  });
-
-  // 月の最初の日の曜日
-  const firstDay = new Date(year, month, 1).getDay();
-  
-  // 空白セルを追加
-  for (let i = 0; i < firstDay; i++) {
-    const emptyEl = document.createElement('div');
-    emptyEl.className = 'p-2';
-    calendar.appendChild(emptyEl);
-  }
-
-  // 日付セルを追加
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month, day);
-    const dateStr = date.toISOString().split('T')[0];
-    const dayEl = document.createElement('button');
-    dayEl.className = 'p-2 rounded hover:bg-gray-100 transition relative';
-    dayEl.textContent = day;
-
-    // 誕生日以前は選択不可
-    if (date < BIRTH_DATE) {
-      dayEl.className += ' text-gray-300 cursor-not-allowed';
-      dayEl.disabled = true;
-    } else {
-      // 記録がある日付をマーク
-      const dateInfo = availableDates.find(d => d.date === dateStr);
-      if (dateInfo) {
-        if (dateInfo.count === 3) {
-          dayEl.className += ' bg-blue-100 text-blue-800 font-bold';
-          // 青マーク
-          const mark = document.createElement('span');
-          mark.className = 'absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full';
-          dayEl.appendChild(mark);
-        } else {
-          dayEl.className += ' bg-yellow-100 text-yellow-800';
-          // 黄マーク
-          const mark = document.createElement('span');
-          mark.className = 'absolute top-0 right-0 w-2 h-2 bg-yellow-500 rounded-full';
-          dayEl.appendChild(mark);
-        }
-      }
-
-      dayEl.onclick = () => loadEntriesForDate(dateStr);
+    const title = document.getElementById('calendarTitle');
+    const calendar = document.getElementById('calendar');
+    
+    title.textContent = `${currentYear}年${currentMonth + 1}月`;
+    
+    // 月の初日と最終日を取得
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startWeekday = firstDay.getDay();
+    
+    // カレンダーをクリア
+    calendar.innerHTML = '';
+    
+    // 曜日ヘッダー
+    const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+    weekdays.forEach(day => {
+        const cell = document.createElement('div');
+        cell.className = 'text-center font-bold text-gray-600 py-2';
+        cell.textContent = day;
+        calendar.appendChild(cell);
+    });
+    
+    // 空白セル（月の初日まで）
+    for (let i = 0; i < startWeekday; i++) {
+        const cell = document.createElement('div');
+        calendar.appendChild(cell);
     }
-
-    calendar.appendChild(dayEl);
-  }
+    
+    // 日付セル
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const cell = document.createElement('div');
+        
+        // 記録の有無をチェック
+        const hasEntry = datesWithEntries.find(d => d.date === date);
+        const isBirthDate = date >= BIRTH_DATE;
+        
+        let cellClass = 'text-center py-3 rounded cursor-pointer transition ';
+        
+        if (!isBirthDate) {
+            cellClass += 'text-gray-300 cursor-not-allowed';
+        } else if (hasEntry) {
+            if (hasEntry.entryCount === 3) {
+                cellClass += 'bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold';
+            } else {
+                cellClass += 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold';
+            }
+        } else {
+            cellClass += 'hover:bg-gray-100 text-gray-700';
+        }
+        
+        cell.className = cellClass;
+        cell.textContent = day;
+        
+        if (isBirthDate) {
+            cell.onclick = () => loadEntries(date);
+        }
+        
+        calendar.appendChild(cell);
+    }
 }
 
 // 月を変更
 function changeMonth(delta) {
-  currentMonth.setMonth(currentMonth.getMonth() + delta);
-  renderCalendar();
+    currentMonth += delta;
+    if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+    } else if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+    }
+    renderCalendar();
 }
 
-// 特定の日付の記録を読み込む
-async function loadEntriesForDate(dateStr) {
-  try {
-    selectedDate = dateStr;
-    const response = await fetch(`/api/entries/${dateStr}`);
-    const data = await response.json();
-
-    if (data.success) {
-      displayEntries(dateStr, data.data);
-      // URLを更新
-      window.history.pushState({}, '', `?date=${dateStr}`);
+// 日齢からジャンプ
+async function jumpToDayAge() {
+    const input = document.getElementById('dayAgeInput');
+    const dayAge = parseInt(input.value);
+    
+    if (isNaN(dayAge) || dayAge < 1) {
+        alert('1以上の数値を入力してください');
+        return;
     }
-  } catch (error) {
-    console.error('Error loading entries:', error);
-  }
+    
+    try {
+        const res = await fetch(`/api/entries/day/${dayAge}`);
+        const data = await res.json();
+        
+        if (data.success && data.data.length > 0) {
+            const date = data.data[0].entry_date;
+            loadEntries(date);
+            
+            // カレンダーも該当月に移動
+            const [year, month] = date.split('-').map(Number);
+            currentYear = year;
+            currentMonth = month - 1;
+            renderCalendar();
+        } else {
+            alert(`みなと${dayAge}日目の記録はまだありません`);
+        }
+    } catch (error) {
+        console.error('Error jumping to day age:', error);
+        alert('エラーが発生しました');
+    }
+}
+
+// 特定日の記録を読み込み
+async function loadEntries(date) {
+    selectedDate = date;
+    
+    try {
+        const res = await fetch(`/api/entries/${date}`);
+        const data = await res.json();
+        
+        if (data.success) {
+            displayEntries(date, data.data);
+        }
+    } catch (error) {
+        console.error('Error loading entries:', error);
+    }
 }
 
 // 記録を表示
-function displayEntries(dateStr, entries) {
-  const entriesArea = document.getElementById('entriesArea');
-  const selectedDateEl = document.getElementById('selectedDate');
-  const selectedDayAgeEl = document.getElementById('selectedDayAge');
-  const entriesCards = document.getElementById('entriesCards');
+function displayEntries(date, entries) {
+    const entriesArea = document.getElementById('entriesArea');
+    const selectedDateEl = document.getElementById('selectedDate');
+    const selectedDayAgeEl = document.getElementById('selectedDayAge');
+    const entriesCards = document.getElementById('entriesCards');
+    
+    // 日付を日本語形式でフォーマット
+    const dateObj = new Date(date + 'T00:00:00+09:00');
+    const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+    const formattedDate = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日(${weekdays[dateObj.getDay()]})`;
+    
+    // 日齢を計算
+    const birthDate = new Date(BIRTH_DATE + 'T00:00:00+09:00');
+    const targetDate = new Date(date + 'T00:00:00+09:00');
+    const diffTime = targetDate.getTime() - birthDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const dayAge = diffDays + 1;
+    
+    selectedDateEl.textContent = formattedDate;
+    selectedDayAgeEl.textContent = `みなと ${dayAge} 日目`;
+    
+    // カードを生成
+    const personConfig = {
+        minato: { name: 'みなと', emoji: '👶', color: 'pink' },
+        araga: { name: 'あらが', emoji: '🧑', color: 'blue' },
+        ryu: { name: 'りゅう', emoji: '🧑', color: 'green' }
+    };
+    
+    entriesCards.innerHTML = ['minato', 'araga', 'ryu'].map(person => {
+        const entry = entries.find(e => e.person === person);
+        const config = personConfig[person];
+        
+        if (entry) {
+            return `
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="bg-${config.color}-100 p-4 border-b-4 border-${config.color}-400">
+                        <h3 class="font-bold text-xl text-${config.color}-800">
+                            ${config.emoji} ${config.name}
+                        </h3>
+                    </div>
+                    <img src="${entry.image_url}" alt="${entry.title}" class="w-full h-auto object-cover">
+                    <div class="p-6">
+                        <p class="text-center text-lg text-gray-800">${entry.title}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="bg-gray-100 rounded-lg shadow p-6 text-center">
+                    <h3 class="font-bold text-xl text-gray-600 mb-2">
+                        ${config.emoji} ${config.name}
+                    </h3>
+                    <p class="text-gray-500">まだ記録がありません</p>
+                </div>
+            `;
+        }
+    }).join('');
+    
+    entriesArea.classList.remove('hidden');
+    
+    // スクロール
+    entriesArea.scrollIntoView({ behavior: 'smooth' });
+}
 
-  // 日付と日齢を計算
-  const date = new Date(dateStr + 'T00:00:00');
-  const dayAge = calculateDayAge(date);
-  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-  const weekday = weekdays[date.getDay()];
-
-  selectedDateEl.textContent = `${dateStr}（${weekday}）`;
-  selectedDayAgeEl.textContent = `みなと ${dayAge}日目`;
-
-  // 記録カードを生成
-  const personData = {
-    'minato': { name: 'みなと', icon: 'fa-baby', color: 'pink' },
-    'araga': { name: 'あらが', icon: 'fa-user', color: 'blue' },
-    'ryu': { name: 'りゅう', icon: 'fa-user', color: 'green' }
-  };
-
-  const persons = ['minato', 'araga', 'ryu'];
-  entriesCards.innerHTML = persons.map(person => {
-    const entry = entries.find(e => e.person === person);
-    const info = personData[person];
-
-    if (entry) {
-      return `
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div class="bg-${info.color}-100 p-4 border-b-4 border-${info.color}-400">
-            <h3 class="font-bold text-xl text-${info.color}-800">
-              <i class="fas ${info.icon} mr-2"></i>
-              ${info.name}
-            </h3>
-          </div>
-          <img src="${entry.image_url}" alt="${entry.title}" class="w-full h-64 object-cover">
-          <div class="p-6">
-            <p class="text-center text-lg text-gray-800">${entry.title}</p>
-          </div>
-        </div>
-      `;
+// 日を移動
+async function navigateDay(delta) {
+    if (!selectedDate) return;
+    
+    const currentIndex = datesWithEntries.findIndex(d => d.date === selectedDate);
+    const nextIndex = currentIndex + delta;
+    
+    if (nextIndex >= 0 && nextIndex < datesWithEntries.length) {
+        const nextDate = datesWithEntries[nextIndex].date;
+        loadEntries(nextDate);
     } else {
-      return `
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div class="bg-gray-100 p-4 border-b-4 border-gray-300">
-            <h3 class="font-bold text-xl text-gray-600">
-              <i class="fas ${info.icon} mr-2"></i>
-              ${info.name}
-            </h3>
-          </div>
-          <div class="p-12 text-center text-gray-400">
-            <i class="fas fa-image text-6xl mb-4"></i>
-            <p>まだ記録がありません</p>
-          </div>
-        </div>
-      `;
+        alert(delta > 0 ? 'これより新しい記録はありません' : 'これより古い記録はありません');
     }
-  }).join('');
-
-  entriesArea.classList.remove('hidden');
-  entriesArea.scrollIntoView({ behavior: 'smooth' });
-}
-
-// 日齢ワープ
-function jumpToDayAge(dayAge = null) {
-  if (dayAge === null) {
-    dayAge = parseInt(document.getElementById('dayAgeInput').value);
-  }
-
-  if (!dayAge || dayAge < 1) {
-    alert('日齢は1以上の数値を入力してください');
-    return;
-  }
-
-  const currentDayAge = calculateDayAge(new Date());
-  if (dayAge > currentDayAge) {
-    alert(`日齢は1〜${currentDayAge}日目の範囲で入力してください`);
-    return;
-  }
-
-  const dateStr = calculateDateFromDayAge(dayAge);
-  loadEntriesForDate(dateStr);
-
-  // カレンダーも該当月に移動
-  const targetDate = new Date(dateStr);
-  currentMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-  renderCalendar();
-}
-
-// 日付ナビゲーション
-function navigateDay(delta) {
-  if (!selectedDate) return;
-
-  const currentIndex = availableDates.findIndex(d => d.date === selectedDate);
-  let nextIndex = currentIndex - delta; // 降順なので逆
-
-  if (nextIndex >= 0 && nextIndex < availableDates.length) {
-    loadEntriesForDate(availableDates[nextIndex].date);
-  } else {
-    alert(delta > 0 ? '次の記録はありません' : '前の記録はありません');
-  }
-}
-
-// 日齢を計算
-function calculateDayAge(date) {
-  const diffMs = date.getTime() - BIRTH_DATE.getTime();
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
-}
-
-// 日齢から日付を計算
-function calculateDateFromDayAge(dayAge) {
-  const targetDate = new Date(BIRTH_DATE);
-  targetDate.setDate(targetDate.getDate() + (dayAge - 1));
-  return targetDate.toISOString().split('T')[0];
 }

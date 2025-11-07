@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 import type { Bindings, Entry, ApiResponse } from './types'
-import { calculateDayAge, calculateDateFromDayAge } from './types'
+import { calculateDayAgeFromDate, calculateDateFromDayAge } from './utils/date'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -129,7 +129,7 @@ app.post('/api/entries', async (c) => {
     }
 
     // 日齢を計算
-    const day_age = calculateDayAge(entry_date);
+    const day_age = calculateDayAgeFromDate(entry_date);
 
     // 画像をR2にアップロード
     const imageKey = `${entry_date}/${person}/${Date.now()}-${image.name}`;
@@ -249,8 +249,8 @@ app.post('/api/auth/login', async (c) => {
 
 // TOPページ
 app.get('/', (c) => {
-  const today = new Date();
-  const currentDayAge = calculateDayAge(today);
+  const today = new Date().toISOString().split('T')[0];
+  const currentDayAge = calculateDayAgeFromDate(today);
 
   return c.html(`
     <!DOCTYPE html>
