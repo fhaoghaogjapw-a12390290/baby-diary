@@ -277,21 +277,21 @@ app.get('/', (c) => {
             <!-- 日の丸背景 -->
             <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-600 rounded-full opacity-20"></div>
             
-            <div class="relative bg-amber-50 shadow-2xl p-12 max-w-md w-full border-8" style="border-color: #8B4513; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
-                <h1 class="text-5xl font-bold mb-8 text-center" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em;">
+            <div class="relative bg-amber-50 shadow-2xl p-6 sm:p-12 max-w-md w-full mx-4 border-4 sm:border-8" style="border-color: #8B4513; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                <h1 class="text-3xl sm:text-5xl font-bold mb-6 sm:mb-8 text-center" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em;">
                     みなととあらがの<br>成長記録
                 </h1>
-                <div class="w-24 h-24 bg-red-600 rounded-full mx-auto mb-8 shadow-lg"></div>
+                <div class="w-20 h-20 sm:w-24 sm:h-24 bg-red-600 rounded-full mx-auto mb-6 sm:mb-8 shadow-lg"></div>
                 <form onsubmit="checkPassword(event)">
-                    <label class="block font-bold mb-4 text-xl text-center" style="font-family: 'Noto Serif JP', serif; color: #8B4513;">
+                    <label class="block font-bold mb-4 text-lg sm:text-xl text-center" style="font-family: 'Noto Serif JP', serif; color: #8B4513;">
                         パスワードを入力
                     </label>
                     <input type="password" id="passwordInput" 
-                           class="w-full border-4 px-4 py-3 text-lg text-center mb-6 bg-white" 
+                           class="w-full border-2 sm:border-4 px-4 py-2 sm:py-3 text-base sm:text-lg text-center mb-4 sm:mb-6 bg-white" 
                            style="border-color: #8B4513; font-family: 'Noto Serif JP', serif;"
                            placeholder="パスワード" required>
                     <button type="submit" 
-                            class="w-full text-white font-bold py-4 px-8 transition duration-300 shadow-lg text-xl border-4"
+                            class="w-full text-white font-bold py-3 sm:py-4 px-6 sm:px-8 transition duration-300 shadow-lg text-lg sm:text-xl border-2 sm:border-4"
                             style="background-color: #8B4513; border-color: #654321; font-family: 'Noto Serif JP', serif;">
                         入室
                     </button>
@@ -307,29 +307,29 @@ app.get('/', (c) => {
             <div class="fixed bottom-8 left-8 w-40 h-40 bg-red-600 rounded-full opacity-20 pointer-events-none z-0"></div>
             <div class="fixed top-1/2 right-1/4 w-24 h-24 bg-amber-100 rounded-full opacity-10 pointer-events-none z-0"></div>
             
-            <div class="container mx-auto px-4 py-12 relative z-10">
+            <div class="container mx-auto px-4 py-6 sm:py-12 relative z-10">
             <!-- ヘッダー -->
-            <header class="text-center mb-16">
-                <div class="mb-8 bg-amber-50 p-8 border-8 shadow-2xl mx-auto max-w-4xl" style="border-color: #8B4513; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
-                    <div class="w-32 h-32 bg-red-600 rounded-full mx-auto mb-6 shadow-lg"></div>
-                    <h1 class="text-5xl md:text-7xl font-bold mb-6" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+            <header class="text-center mb-8 sm:mb-16">
+                <div class="mb-6 sm:mb-8 bg-amber-50 p-4 sm:p-8 border-4 sm:border-8 shadow-2xl mx-auto max-w-4xl" style="border-color: #8B4513; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                    <div class="w-20 h-20 sm:w-32 sm:h-32 bg-red-600 rounded-full mx-auto mb-4 sm:mb-6 shadow-lg"></div>
+                    <h1 class="text-3xl sm:text-5xl md:text-7xl font-bold mb-4 sm:mb-6" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
                         みなととあらがの<br>成長記録
                     </h1>
-                    <div class="h-2 mx-auto mb-6" style="background-color: #8B4513; width: 200px;"></div>
-                    <p class="text-3xl font-bold mb-8" style="font-family: 'Noto Serif JP', serif; color: #B22222; letter-spacing: 0.3em;">
+                    <div class="h-1 sm:h-2 mx-auto mb-4 sm:mb-6" style="background-color: #8B4513; width: 150px; max-width: 200px;"></div>
+                    <p class="text-xl sm:text-2xl md:text-3xl font-bold mb-6 sm:mb-8" style="font-family: 'Noto Serif JP', serif; color: #B22222; letter-spacing: 0.3em;">
                         誇り高き日本を作ろう
                     </p>
-                    <div class="bg-white px-8 py-4 inline-block border-4 shadow-lg" style="border-color: #8B4513;">
-                        <p class="text-xl font-bold mb-2" style="color: #8B4513;">
+                    <div class="bg-white px-4 sm:px-8 py-3 sm:py-4 inline-block border-2 sm:border-4 shadow-lg" style="border-color: #8B4513;">
+                        <p class="text-sm sm:text-lg md:text-xl font-bold mb-2" style="color: #8B4513;">
                             みなと 誕生日: 2025年11月7日
                         </p>
-                        <p class="text-xl font-bold mb-4" style="color: #8B4513;">
-                            あらが 誕生日: 1998年10月1日
+                        <p class="text-sm sm:text-lg md:text-xl font-bold mb-3 sm:mb-4" style="color: #8B4513;">
+                            あらが 誕生日: 1998年5月9日
                         </p>
-                        <p id="minatoDayAgeDisplay" class="text-4xl font-black mt-2" style="color: #B22222;">
+                        <p id="minatoDayAgeDisplay" class="text-2xl sm:text-3xl md:text-4xl font-black mt-2" style="color: #B22222;">
                             みなと生後 ${currentDayAge} 日目
                         </p>
-                        <p id="aragaDayAgeDisplay" class="text-4xl font-black mt-2" style="color: #B22222;">
+                        <p id="aragaDayAgeDisplay" class="text-2xl sm:text-3xl md:text-4xl font-black mt-2" style="color: #B22222;">
                             あらが生後 ${currentAragaDayAge} 日目
                         </p>
                     </div>
@@ -337,13 +337,13 @@ app.get('/', (c) => {
             </header>
 
             <!-- 最新の記録 -->
-            <section class="mb-12">
-                <div class="bg-amber-50 p-6 border-8 mb-8 text-center shadow-xl" style="border-color: #8B4513;">
-                    <h2 class="text-4xl font-bold" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em;">
+            <section class="mb-8 sm:mb-12">
+                <div class="bg-amber-50 p-4 sm:p-6 border-4 sm:border-8 mb-6 sm:mb-8 text-center shadow-xl" style="border-color: #8B4513;">
+                    <h2 class="text-2xl sm:text-3xl md:text-4xl font-bold" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.2em;">
                         直近で更新された記録
                     </h2>
                 </div>
-                <div id="latest-entries" class="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <div id="latest-entries" class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 max-w-5xl mx-auto">
                     <div class="text-center text-gray-500 col-span-2">
                         読み込み中...
                     </div>
@@ -351,11 +351,11 @@ app.get('/', (c) => {
             </section>
 
             <!-- ナビゲーションボタン -->
-            <div class="flex flex-col md:flex-row gap-6 justify-center mt-12">
-                <a href="/view" class="text-white font-bold py-6 px-12 text-center transition duration-300 shadow-2xl text-2xl border-8" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.2em;">
+            <div class="flex flex-col md:flex-row gap-4 sm:gap-6 justify-center mt-8 sm:mt-12">
+                <a href="/view" class="text-white font-bold py-4 sm:py-6 px-8 sm:px-12 text-center transition duration-300 shadow-2xl text-lg sm:text-xl md:text-2xl border-4 sm:border-8" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.2em;">
                     日記を見る
                 </a>
-                <a href="/post" class="bg-amber-50 font-bold py-6 px-12 text-center transition duration-300 shadow-2xl text-2xl border-8" style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513; letter-spacing: 0.2em;">
+                <a href="/post" class="bg-amber-50 font-bold py-4 sm:py-6 px-8 sm:px-12 text-center transition duration-300 shadow-2xl text-lg sm:text-xl md:text-2xl border-4 sm:border-8" style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513; letter-spacing: 0.2em;">
                     今日の記録を投稿する
                 </a>
             </div>

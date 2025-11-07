@@ -65,7 +65,7 @@ export type AuthPayload = {
 
 // Constants
 export const BIRTH_DATE_MINATO = '2025-11-07';
-export const BIRTH_DATE_ARAGA = '1998-10-01';
+export const BIRTH_DATE_ARAGA = '1998-05-09';
 // Backward compatibility
 export const BIRTH_DATE = BIRTH_DATE_MINATO;
 

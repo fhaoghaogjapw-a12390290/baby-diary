@@ -1,7 +1,7 @@
 // みなととあらがの成長記録 - 閲覧ページ用JavaScript
 
 const BIRTH_DATE_MINATO = '2025-11-07';
-const BIRTH_DATE_ARAGA = '1998-10-01';
+const BIRTH_DATE_ARAGA = '1998-05-09';
 const BIRTH_DATE = BIRTH_DATE_MINATO; // 後方互換性のため
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
