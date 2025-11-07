@@ -352,6 +352,34 @@ async function navigateDay(delta) {
     console.log('===== navigateDay END (SUCCESS) =====');
 }
 
+// 日記を削除する関数
+function deleteEntry(date, person) {
+    if (!confirm('本当にこの記録を削除しますか？\n削除した記録は復元できません。')) {
+        return;
+    }
+    
+    fetch(`/api/entries/${date}/${person}`, {
+        method: 'DELETE'
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('記録を削除しました');
+            // モーダルを閉じる
+            const modal = document.querySelector('.fixed');
+            if (modal) modal.remove();
+            // 記録を再読み込み
+            loadEntriesForDate(date);
+        } else {
+            alert('削除に失敗しました: ' + data.error);
+        }
+    })
+    .catch(err => {
+        console.error('Error deleting entry:', err);
+        alert('削除に失敗しました');
+    });
+}
+
 // 日記を全面表示
 function showFullEntry(person, date) {
     const personConfig = {
@@ -403,14 +431,19 @@ function showFullEntry(person, date) {
                             <p class="text-center text-2xl font-bold text-gray-800 mb-6" style="font-family: 'Noto Serif JP', serif;">
                                 ${entry.title}
                             </p>
-                            <div class="flex justify-center gap-4">
+                            <div class="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
                                 <button onclick="location.href='/post?date=${date}&person=${person}'" 
-                                        class="bg-${config.color}-600 hover:bg-${config.color}-700 text-white font-bold py-3 px-8 transition shadow-lg text-lg border-2 border-${config.color}-800" 
+                                        class="bg-${config.color}-600 hover:bg-${config.color}-700 text-white font-bold py-2 sm:py-3 px-6 sm:px-8 transition shadow-lg text-base sm:text-lg border-2 border-${config.color}-800" 
                                         style="font-family: 'Noto Serif JP', serif;">
                                     この日記を編集する
                                 </button>
+                                <button onclick="deleteEntry('${date}', '${person}')" 
+                                        class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 sm:py-3 px-6 sm:px-8 transition shadow-lg text-base sm:text-lg border-2 border-red-800" 
+                                        style="font-family: 'Noto Serif JP', serif;">
+                                    この日記を削除する
+                                </button>
                                 <button onclick="this.closest('.fixed').remove()" 
-                                        class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-8 transition shadow-lg text-lg" 
+                                        class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 sm:py-3 px-6 sm:px-8 transition shadow-lg text-base sm:text-lg" 
                                         style="font-family: 'Noto Serif JP', serif;">
                                     閉じる
                                 </button>

@@ -210,6 +210,49 @@ app.get('/api/images/*', async (c) => {
   }
 });
 
+// 記録を削除
+app.delete('/api/entries/:date/:person', async (c) => {
+  try {
+    const date = c.req.param('date');
+    const person = c.req.param('person');
+
+    // 削除前に画像URLを取得
+    const { results } = await c.env.DB.prepare(`
+      SELECT image_url FROM entries WHERE entry_date = ? AND person = ?
+    `).bind(date, person).all();
+
+    if (results.length === 0) {
+      return c.json<ApiResponse>({
+        success: false,
+        error: '記録が見つかりません'
+      }, 404);
+    }
+
+    const entry = results[0] as Entry;
+
+    // R2から画像を削除
+    if (entry.image_url && entry.image_url.startsWith('/api/images/')) {
+      const imageKey = entry.image_url.replace('/api/images/', '');
+      await c.env.R2.delete(imageKey);
+    }
+
+    // データベースから削除
+    await c.env.DB.prepare(`
+      DELETE FROM entries WHERE entry_date = ? AND person = ?
+    `).bind(date, person).run();
+
+    return c.json<ApiResponse>({
+      success: true,
+      message: '記録を削除しました'
+    });
+  } catch (error) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: String(error)
+    }, 500);
+  }
+});
+
 // ユーザー選択（パスワード不要）
 app.post('/api/auth/select', async (c) => {
   try {
@@ -526,11 +569,35 @@ app.get('/', (c) => {
                 })
                 .catch(err => console.error('Error loading entries:', err));
             
+            // 日記を削除する関数
+            function deleteEntry(date, person) {
+                if (!confirm('本当にこの記録を削除しますか？\\n削除した記録は復元できません。')) {
+                    return;
+                }
+                
+                fetch(\`/api/entries/\${date}/\${person}\`, {
+                    method: 'DELETE'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('記録を削除しました');
+                        location.reload();
+                    } else {
+                        alert('削除に失敗しました: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error deleting entry:', err);
+                    alert('削除に失敗しました');
+                });
+            }
+            
             // 日記を全面表示する関数
             function showFullEntry(person, date, imageUrl, title, dayAge, minatoDayAge, aragaDayAge) {
                 const personConfig = {
-                    'minato': { name: 'みなと', emoji: '👶', color: 'pink' },
-                    'araga': { name: 'あらが', emoji: '🎸', color: 'blue' }
+                    'minato': { name: 'みなと', emoji: '👶', color: 'blue' },
+                    'araga': { name: 'あらが', emoji: '👴', color: 'blue' }
                 };
                 const config = personConfig[person];
                 
@@ -566,14 +633,19 @@ app.get('/', (c) => {
                             <p class="text-center text-3xl font-bold mb-8" style="font-family: 'Noto Serif JP', serif; color: #8B4513; letter-spacing: 0.1em;">
                                 \${title}
                             </p>
-                            <div class="flex justify-center gap-4">
+                            <div class="flex flex-col sm:flex-row justify-center gap-4">
                                 <button onclick="location.href='/post?date=\${date}&person=\${person}'" 
-                                        class="text-white font-bold py-4 px-10 transition shadow-2xl text-xl border-8" 
+                                        class="text-white font-bold py-3 sm:py-4 px-6 sm:px-10 transition shadow-2xl text-lg sm:text-xl border-4 sm:border-8" 
                                         style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.1em;">
                                     この日記を編集する
                                 </button>
+                                <button onclick="deleteEntry('\${date}', '\${person}')" 
+                                        class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-10 transition shadow-2xl text-lg sm:text-xl border-4 sm:border-8 border-red-800" 
+                                        style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.1em;">
+                                    この日記を削除する
+                                </button>
                                 <button onclick="this.closest('.fixed').remove()" 
-                                        class="bg-amber-50 font-bold py-4 px-10 transition shadow-2xl text-xl border-8" 
+                                        class="bg-amber-50 font-bold py-3 sm:py-4 px-6 sm:px-10 transition shadow-2xl text-lg sm:text-xl border-4 sm:border-8" 
                                         style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513; letter-spacing: 0.1em;">
                                     閉じる
                                 </button>
@@ -612,10 +684,7 @@ app.get('/view', (c) => {
                     </h1>
                     <div class="h-2 w-32 mx-auto mt-4" style="background-color: #8B4513;"></div>
                 </div>
-                <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
-                    <a href="/post" class="w-full sm:w-auto bg-white hover:bg-amber-50 font-bold py-4 px-10 text-center transition duration-300 shadow-lg text-xl border-8" style="font-family: 'Noto Serif JP', serif; color: #8B4513; border-color: #8B4513; letter-spacing: 0.1em;">
-                        既存の記録を編集する
-                    </a>
+                <div class="flex justify-center items-center">
                     <a href="/" class="w-full sm:w-auto text-white hover:opacity-90 font-bold py-4 px-10 text-center transition duration-300 shadow-lg text-xl border-8" style="font-family: 'Noto Serif JP', serif; background-color: #8B4513; border-color: #654321; letter-spacing: 0.1em;">
                         TOPへ戻る
                     </a>
