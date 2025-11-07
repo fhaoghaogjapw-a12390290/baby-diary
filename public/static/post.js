@@ -8,7 +8,7 @@ let isEditMode = false;
 
 const userEmojis = {
     'minato': '👶',
-    'araga': '🎸'
+    'araga': '👴'
 };
 
 const userNames = {

@@ -25,8 +25,8 @@ app.get('/api/entries/latest', async (c) => {
       ) WHERE rn = 1
       ORDER BY 
         CASE person 
-          WHEN 'araga' THEN 1 
-          WHEN 'minato' THEN 2 
+          WHEN 'minato' THEN 1 
+          WHEN 'araga' THEN 2 
         END
     `).all();
 
@@ -51,8 +51,8 @@ app.get('/api/entries/:date', async (c) => {
       WHERE entry_date = ? 
       ORDER BY 
         CASE person 
-          WHEN 'araga' THEN 1 
-          WHEN 'minato' THEN 2 
+          WHEN 'minato' THEN 1 
+          WHEN 'araga' THEN 2 
         END
     `).bind(date).all();
 
@@ -77,8 +77,8 @@ app.get('/api/entries/day/:dayAge', async (c) => {
       WHERE day_age = ? 
       ORDER BY 
         CASE person 
-          WHEN 'araga' THEN 1 
-          WHEN 'minato' THEN 2 
+          WHEN 'minato' THEN 1 
+          WHEN 'araga' THEN 2 
         END
     `).bind(dayAge).all();
 
@@ -409,19 +409,39 @@ app.get('/', (c) => {
                 return true;
             }
             
+            // 日齢計算関数
+            function calculateDayAge(birthDate) {
+                const today = new Date();
+                const birth = new Date(birthDate);
+                const diffTime = today.getTime() - birth.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays + 1;
+            }
+            
             // 素数記念日チェック
             function checkPrimeDay() {
+                const BIRTH_DATE_MINATO = '2025-11-07';
+                const BIRTH_DATE_ARAGA = '1998-05-09';
+                
                 const minatoDayAgeEl = document.getElementById('minatoDayAgeDisplay');
                 const aragaDayAgeEl = document.getElementById('aragaDayAgeDisplay');
                 
-                const minatoDayAge = parseInt('${currentDayAge}');
+                // リアルタイムで日齢を計算
+                const minatoDayAge = calculateDayAge(BIRTH_DATE_MINATO);
+                const aragaDayAge = calculateDayAge(BIRTH_DATE_ARAGA);
+                
+                // みなとの表示
                 if (isPrime(minatoDayAge)) {
                     minatoDayAgeEl.innerHTML = 'みなと生後 ' + minatoDayAge + ' 日目<br><span style="color: #DC143C; font-size: 1.2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🎊 素数記念日 🎊</span>';
+                } else {
+                    minatoDayAgeEl.textContent = 'みなと生後 ' + minatoDayAge + ' 日目';
                 }
                 
-                const aragaDayAge = parseInt('${currentAragaDayAge}');
+                // あらがの表示
                 if (isPrime(aragaDayAge)) {
                     aragaDayAgeEl.innerHTML = 'あらが生後 ' + aragaDayAge + ' 日目<br><span style="color: #DC143C; font-size: 1.2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">🎊 素数記念日 🎊</span>';
+                } else {
+                    aragaDayAgeEl.textContent = 'あらが生後 ' + aragaDayAge + ' 日目';
                 }
             }
         </script>
@@ -433,7 +453,7 @@ app.get('/', (c) => {
                     if (data.success && data.data.length > 0) {
                         const container = document.getElementById('latest-entries');
                         const personColors = {
-                            'minato': 'pink',
+                            'minato': 'blue',
                             'araga': 'blue'
                         };
                         const personNames = {
@@ -447,11 +467,11 @@ app.get('/', (c) => {
 
                         const emojis = {
                             'minato': '👶',
-                            'araga': '🎸'
+                            'araga': '👴'
                         };
                         
-                        // あらが→みなとの順番に並び替え
-                        const personOrder = ['araga', 'minato'];
+                        // みなと→あらがの順番に並び替え
+                        const personOrder = ['minato', 'araga'];
                         const sortedData = data.data.sort((a, b) => {
                             return personOrder.indexOf(a.person) - personOrder.indexOf(b.person);
                         });

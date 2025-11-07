@@ -262,12 +262,12 @@ function displayEntries(date, entries) {
     
     // カードを生成
     const personConfig = {
-        minato: { name: 'みなと', emoji: '👶', color: 'pink' },
-        araga: { name: 'あらが', emoji: '🎸', color: 'blue' }
+        minato: { name: 'みなと', emoji: '👶', color: 'blue' },
+        araga: { name: 'あらが', emoji: '👴', color: 'blue' }
     };
     
-    // あらが→みなとの順番に並び替え
-    const personOrder = ['araga', 'minato'];
+    // みなと→あらがの順番に並び替え
+    const personOrder = ['minato', 'araga'];
     
     entriesCards.innerHTML = personOrder.map(person => {
         const entry = entries.find(e => e.person === person);
@@ -355,8 +355,8 @@ async function navigateDay(delta) {
 // 日記を全面表示
 function showFullEntry(person, date) {
     const personConfig = {
-        minato: { name: 'みなと', emoji: '👶', color: 'pink' },
-        araga: { name: 'あらが', emoji: '🎸', color: 'blue' }
+        minato: { name: 'みなと', emoji: '👶', color: 'blue' },
+        araga: { name: 'あらが', emoji: '👴', color: 'blue' }
     };
     const config = personConfig[person];
     

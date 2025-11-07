@@ -76,5 +76,5 @@ export const PERSON_DISPLAY_NAMES = {
 
 export const PERSON_EMOJIS = {
   minato: '👶',
-  araga: '🎸',
+  araga: '👴',
 } as const;
