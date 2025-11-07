@@ -174,14 +174,14 @@ function displayEntries(date, entries) {
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     const dayAge = diffDays + 1;
     
-    selectedDateEl.textContent = formattedDate;
-    selectedDayAgeEl.textContent = `みなと ${dayAge} 日目`;
+    selectedDateEl.textContent = '🎉 ' + formattedDate + ' 🎉';
+    selectedDayAgeEl.textContent = `👶 みなと ${dayAge} 日目 👶`;
     
     // カードを生成
     const personConfig = {
         minato: { name: 'みなと', emoji: '👶', color: 'pink' },
-        araga: { name: 'あらが', emoji: '🧑', color: 'blue' },
-        ryu: { name: 'りゅう', emoji: '🧑', color: 'green' }
+        araga: { name: 'あらが', emoji: '🎸', color: 'blue' },
+        ryu: { name: 'りゅう', emoji: '🎯', color: 'green' }
     };
     
     entriesCards.innerHTML = ['minato', 'araga', 'ryu'].map(person => {
@@ -190,25 +190,25 @@ function displayEntries(date, entries) {
         
         if (entry) {
             return `
-                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <div class="bg-${config.color}-100 p-4 border-b-4 border-${config.color}-400">
-                        <h3 class="font-bold text-xl text-${config.color}-800">
-                            ${config.emoji} ${config.name}
+                <div class="bg-gradient-to-br from-${config.color}-100 to-${config.color}-200 rounded-3xl shadow-2xl overflow-hidden border-4 border-${config.color}-400 transform hover:scale-105 transition">
+                    <div class="bg-gradient-to-r from-${config.color}-400 to-${config.color}-500 p-6 border-b-4 border-${config.color}-600">
+                        <h3 class="font-black text-3xl text-white drop-shadow-lg text-center">
+                            ${config.emoji} ${config.name} ${config.emoji}
                         </h3>
                     </div>
-                    <img src="${entry.image_url}" alt="${entry.title}" class="w-full h-auto object-cover">
-                    <div class="p-6">
-                        <p class="text-center text-lg text-gray-800">${entry.title}</p>
+                    <img src="${entry.image_url}" alt="${entry.title}" class="w-full h-auto object-cover border-4 border-${config.color}-300">
+                    <div class="p-8 bg-white">
+                        <p class="text-center text-2xl font-bold text-gray-800">✨ ${entry.title} ✨</p>
                     </div>
                 </div>
             `;
         } else {
             return `
-                <div class="bg-gray-100 rounded-lg shadow p-6 text-center">
-                    <h3 class="font-bold text-xl text-gray-600 mb-2">
+                <div class="bg-gradient-to-br from-gray-200 to-gray-300 rounded-3xl shadow-xl p-8 text-center border-4 border-gray-400">
+                    <h3 class="font-bold text-2xl text-gray-600 mb-4">
                         ${config.emoji} ${config.name}
                     </h3>
-                    <p class="text-gray-500">まだ記録がありません</p>
+                    <p class="text-gray-500 text-xl">📝 まだ記録がありません</p>
                 </div>
             `;
         }

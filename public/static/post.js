@@ -2,22 +2,22 @@
 
 const BIRTH_DATE = '2025-11-07';
 let currentUser = null;
+let isEditMode = false;
+
+const userEmojis = {
+    'minato': '👶',
+    'araga': '🎸',
+    'ryu': '🎯'
+};
+
+const userNames = {
+    'minato': 'みなと',
+    'araga': 'あらが',
+    'ryu': 'りゅう'
+};
 
 // ページ読み込み時に実行
 document.addEventListener('DOMContentLoaded', () => {
-    // 今日の日付を設定
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('entryDate').value = today;
-    document.getElementById('entryDate').min = BIRTH_DATE;
-    
-    updateDayAgeDisplay();
-    
-    // 日付変更時にも日齢を更新
-    document.getElementById('entryDate').addEventListener('change', updateDayAgeDisplay);
-    
-    // 画像プレビュー
-    document.getElementById('image').addEventListener('change', handleImagePreview);
-    
     // ローカルストレージから認証情報を確認
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -26,6 +26,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ユーザー選択処理
+async function selectUser(person_id) {
+    try {
+        const res = await fetch('/api/auth/select', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ person_id })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            currentUser = data.data.user;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            showPostForm();
+        } else {
+            showMessage(data.error || 'ユーザー選択に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('User select error:', error);
+        showMessage('ユーザー選択でエラーが発生しました', 'error');
+    }
+}
+
+// ログアウト（ユーザー変更）
+function logout() {
+    currentUser = null;
+    isEditMode = false;
+    localStorage.removeItem('currentUser');
+    document.getElementById('selectForm').classList.remove('hidden');
+    document.getElementById('postForm').classList.add('hidden');
+}
+
+// 投稿フォームを表示
+function showPostForm() {
+    document.getElementById('selectForm').classList.add('hidden');
+    document.getElementById('postForm').classList.remove('hidden');
+    document.getElementById('displayName').textContent = currentUser.display_name;
+    document.getElementById('displayEmoji').textContent = userEmojis[currentUser.person_id];
+    document.getElementById('displayEmoji2').textContent = userEmojis[currentUser.person_id];
+    
+    // 今日の日付を設定
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('entryDate').value = today;
+    document.getElementById('entryDate').min = BIRTH_DATE;
+    
+    updateDayAgeDisplay();
+    
+    // 日付変更時にも日齢を更新
+    document.getElementById('entryDate').addEventListener('change', () => {
+        updateDayAgeDisplay();
+        checkExistingEntry();
+    });
+    
+    // 画像プレビュー
+    document.getElementById('image').addEventListener('change', handleImagePreview);
+    
+    // 編集ボタンを確認
+    checkExistingEntry();
+}
+
 // 日齢表示を更新
 function updateDayAgeDisplay() {
     const dateInput = document.getElementById('entryDate');
@@ -33,7 +96,7 @@ function updateDayAgeDisplay() {
     
     if (dateInput.value) {
         const dayAge = calculateDayAge(dateInput.value);
-        dayAgeDisplay.textContent = `みなと ${dayAge} 日目`;
+        dayAgeDisplay.textContent = `🎉 みなと ${dayAge} 日目 🎉`;
     }
 }
 
@@ -46,52 +109,64 @@ function calculateDayAge(dateString) {
     return diffDays + 1;
 }
 
-// ログイン処理
-async function handleLogin(event) {
-    event.preventDefault();
+// 既存の記録をチェック
+async function checkExistingEntry() {
+    const dateInput = document.getElementById('entryDate');
+    const editBtn = document.getElementById('editBtn');
     
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
+    if (!dateInput.value || !currentUser) {
+        editBtn.classList.add('hidden');
+        return;
+    }
     
     try {
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ username, password })
-        });
-        
+        const res = await fetch(`/api/entries/${dateInput.value}`);
         const data = await res.json();
         
         if (data.success) {
-            currentUser = data.data.user;
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            localStorage.setItem('auth_token', data.data.token);
-            showPostForm();
-        } else {
-            showMessage(data.error || 'ログインに失敗しました', 'error');
+            const existingEntry = data.data.find(e => e.person === currentUser.person_id);
+            if (existingEntry) {
+                editBtn.classList.remove('hidden');
+            } else {
+                editBtn.classList.add('hidden');
+            }
         }
     } catch (error) {
-        console.error('Login error:', error);
-        showMessage('ログイン処理でエラーが発生しました', 'error');
+        console.error('Error checking existing entry:', error);
     }
 }
 
-// ログアウト
-function logout() {
-    currentUser = null;
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('auth_token');
-    document.getElementById('loginForm').classList.remove('hidden');
-    document.getElementById('postForm').classList.add('hidden');
-}
-
-// 投稿フォームを表示
-function showPostForm() {
-    document.getElementById('loginForm').classList.add('hidden');
-    document.getElementById('postForm').classList.remove('hidden');
-    document.getElementById('displayName').textContent = currentUser.display_name;
+// 既存の記録を読み込んで編集
+async function loadExistingEntry() {
+    const dateInput = document.getElementById('entryDate');
+    
+    try {
+        const res = await fetch(`/api/entries/${dateInput.value}`);
+        const data = await res.json();
+        
+        if (data.success) {
+            const existingEntry = data.data.find(e => e.person === currentUser.person_id);
+            if (existingEntry) {
+                // フォームに既存データを設定
+                document.getElementById('title').value = existingEntry.title;
+                
+                // 画像プレビュー表示
+                document.getElementById('previewImage').src = existingEntry.image_url;
+                document.getElementById('imagePreview').classList.remove('hidden');
+                
+                // 画像は必須ではなくする
+                document.getElementById('image').removeAttribute('required');
+                
+                isEditMode = true;
+                document.getElementById('submitBtn').innerHTML = '✏️ 更新する ✏️';
+                
+                showMessage('既存の記録を編集モードで読み込みました', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading entry:', error);
+        showMessage('記録の読み込みに失敗しました', 'error');
+    }
 }
 
 // 画像プレビュー
@@ -120,15 +195,18 @@ async function handleSubmit(event) {
     
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
-    submitBtn.textContent = '投稿中...';
+    submitBtn.textContent = isEditMode ? '更新中...' : '投稿中...';
     
     try {
         const entryDate = document.getElementById('entryDate').value;
         const title = document.getElementById('title').value;
         const imageFile = document.getElementById('image').files[0];
         
-        if (!imageFile) {
+        // 新規投稿の場合は画像必須
+        if (!isEditMode && !imageFile) {
             showMessage('画像を選択してください', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '🎉 投稿する 🎉';
             return;
         }
         
@@ -137,7 +215,9 @@ async function handleSubmit(event) {
         formData.append('entry_date', entryDate);
         formData.append('person', currentUser.person_id);
         formData.append('title', title);
-        formData.append('image', imageFile);
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
         
         const res = await fetch('/api/entries', {
             method: 'POST',
@@ -147,12 +227,18 @@ async function handleSubmit(event) {
         const data = await res.json();
         
         if (data.success) {
-            showMessage('投稿が完了しました！', 'success');
+            showMessage(isEditMode ? '記録を更新しました！🎉' : '投稿が完了しました！🎉', 'success');
             
             // フォームをリセット
             document.getElementById('title').value = '';
             document.getElementById('image').value = '';
+            document.getElementById('image').setAttribute('required', 'required');
             document.getElementById('imagePreview').classList.add('hidden');
+            isEditMode = false;
+            document.getElementById('submitBtn').innerHTML = '🎉 投稿する 🎉';
+            
+            // 編集ボタンを表示
+            checkExistingEntry();
             
             // 3秒後に閲覧ページへ遷移
             setTimeout(() => {
@@ -166,7 +252,7 @@ async function handleSubmit(event) {
         showMessage('投稿処理でエラーが発生しました', 'error');
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = '投稿する';
+        submitBtn.innerHTML = isEditMode ? '✏️ 更新する ✏️' : '🎉 投稿する 🎉';
     }
 }
 
@@ -188,7 +274,7 @@ function showMessage(text, type = 'info') {
         borderColor = 'border-green-400';
     }
     
-    messageEl.className = `mt-4 p-4 rounded-lg border-2 ${bgColor} ${textColor} ${borderColor}`;
+    messageEl.className = `mt-4 p-4 rounded-lg border-2 ${bgColor} ${textColor} ${borderColor} font-bold text-lg`;
     messageEl.textContent = text;
     messageEl.classList.remove('hidden');
     
