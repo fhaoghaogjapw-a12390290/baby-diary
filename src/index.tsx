@@ -402,6 +402,13 @@ app.get('/', (c) => {
                     今日の記録を投稿する
                 </a>
             </div>
+            
+            <!-- ログアウトボタン -->
+            <div class="flex justify-center mt-6 sm:mt-8">
+                <button onclick="logout()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 sm:py-3 px-6 sm:px-8 text-center transition duration-300 shadow-lg text-sm sm:text-base border-2 sm:border-4 border-gray-700" style="font-family: 'Noto Serif JP', serif; letter-spacing: 0.1em;">
+                    ログアウト
+                </button>
+            </div>
         </div>
         </div>
 
@@ -409,9 +416,9 @@ app.get('/', (c) => {
             // パスワード認証
             const CORRECT_PASSWORD = 'minato1107';
             
-            // ページ読み込み時にセッションチェック
+            // ページ読み込み時に認証状態をチェック（localStorageを使用）
             document.addEventListener('DOMContentLoaded', () => {
-                const isAuthenticated = sessionStorage.getItem('authenticated');
+                const isAuthenticated = localStorage.getItem('authenticated');
                 if (isAuthenticated === 'true') {
                     showMainContent();
                 }
@@ -423,7 +430,8 @@ app.get('/', (c) => {
                 const errorEl = document.getElementById('authError');
                 
                 if (password === CORRECT_PASSWORD) {
-                    sessionStorage.setItem('authenticated', 'true');
+                    // localStorageに保存（ブラウザを閉じても保持）
+                    localStorage.setItem('authenticated', 'true');
                     showMainContent();
                 } else {
                     errorEl.classList.remove('hidden');
@@ -438,6 +446,14 @@ app.get('/', (c) => {
                 
                 // 素数判定
                 checkPrimeDay();
+            }
+            
+            // ログアウト関数
+            function logout() {
+                if (confirm('ログアウトしますか？')) {
+                    localStorage.removeItem('authenticated');
+                    location.reload();
+                }
             }
             
             // 素数判定関数
