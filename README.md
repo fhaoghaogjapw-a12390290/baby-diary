@@ -12,7 +12,8 @@
 
 ## 🌐 アクセスURL
 
-- **本番環境**: https://f67f6dda.baby-diary.pages.dev
+- **本番環境（固定URL）**: https://baby-diary.pages.dev
+- **最新プレビュー**: https://f67f6dda.baby-diary.pages.dev
 - **GitHubリポジトリ**: https://github.com/fhaoghaogjapw-a12390290/baby-diary
 - **TOPページ**: `/` (パスワード: `minato1107`)
 - **日記閲覧ページ**: `/view`
